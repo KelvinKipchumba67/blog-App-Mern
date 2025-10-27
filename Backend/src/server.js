@@ -3,6 +3,9 @@ const postRouter = require('./routes/blogRoutes');
 const express = require('express');
 const dotenv = require('dotenv');
 const connectDB  = require('./config/db');
+const cors = require('cors');
+
+
 
 dotenv.config();
 
@@ -10,7 +13,7 @@ const app = express();
 
 // Middleware: parse JSON
 app.use(express.json());
-
+app.use(cors());
 // Connect DB
 connectDB();
 

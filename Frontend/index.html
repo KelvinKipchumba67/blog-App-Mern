@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Blog App</title>
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Load React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- 3. Load Babel for JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Simple scrollbar for the post list */
+        .post-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .post-list::-webkit-scrollbar-track {
+            background: #f1f5f9; /* slate-100 */
+        }
+        .post-list::-webkit-scrollbar-thumb {
+            background: #94a3b8; /* slate-400 */
+            border-radius: 4px;
+        }
+        .post-list::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* slate-500 */
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // --- API Configuration ---
+        const API_URL = 'http://127.0.0.1:5000/api/v1/posts';
+
+
+        // --- API Helper Functions ---
+        
+        /**
+         * Fetches all posts from the API
+         */
+        const fetchAllPosts = async () => {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error('Failed to fetch posts');
+            const data = await response.json();
+            return data.data.posts;
+        };
+
+        /**
+         * Creates a new post
+         * @param {object} postData - { title, author, content }
+         */
+        const createNewPost = async (postData) => {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(postData),
+            });
+            if (!response.ok) throw new Error('Failed to create post');
+            const data = await response.json();
+            return data.data.post;
+        };
+
+        /**
+         * Updates an existing post
+         * @param {string} id - The ID of the post to update
+         * @param {object} postData - The data to update
+         */
+        const updateExistingPost = async (id, postData) => {
+            const response = await fetch(`${API_URL}/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(postData),
+            });
+            if (!response.ok) throw new Error('Failed to update post');
+            const data = await response.json();
+            return data.data.post;
+        };
+
+        /**
+         * Deletes a post
+         * @param {string} id - The ID of the post to delete
+         */
+        const deletePostById = async (id) => {
+            const response = await fetch(`${API_URL}/${id}`, {
+                method: 'DELETE',
+            });
+            // 204 No Content response has no body, so we just check ok status
+            if (!response.ok) throw new Error('Failed to delete post');
+            return true;
+        };
+
+
+        // --- React Components ---
+
+        /**
+         * A custom, non-blocking message box
+         */
+        function MessageBox({ message, onClose }) {
+            if (!message) return null;
+
+            const colorClasses = message.type === 'success' 
+                ? 'bg-green-100 border-green-400 text-green-700'
+                : 'bg-red-100 border-red-400 text-red-700';
+
+            return (
+                <div className={`border px-4 py-3 rounded-lg relative ${colorClasses} shadow-md mb-6`} role="alert">
+                    <strong className="font-bold">{message.type === 'success' ? 'Success!' : 'Error!'}</strong>
+                    <span className="block sm:inline ml-2">{message.text}</span>
+                    <span 
+                        className="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer"
+                        onClick={onClose}
+                    >
+                        <svg className="fill-current h-6 w-6" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 2.651a1.2 1.2 0 1 1-1.697-1.697L8.304 10 5.652 7.349a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-2.651a1.2 1.2 0 1 1 1.697 1.697L11.697 10l2.651 2.651a1.2 1.2 0 0 1 0 1.698z"/></svg>
+                    </span>
+                </div>
+            );
+        }
+
+        /**
+         * Form for creating and editing posts
+         */
+        function PostForm({ postToEdit, onSave, onCancelEdit }) {
+            const [title, setTitle] = useState('');
+            const [author, setAuthor] = useState('');
+            const [content, setContent] = useState('');
+            const [isEditing, setIsEditing] = useState(false);
+
+            // When postToEdit changes, update the form's internal state
+            useEffect(() => {
+                if (postToEdit) {
+                    setTitle(postToEdit.title);
+                    setAuthor(postToEdit.author);
+                    setContent(postToEdit.content);
+                    setIsEditing(true);
+                } else {
+                    setTitle('');
+                    setAuthor('');
+                    setContent('');
+                    setIsEditing(false);
+                }
+            }, [postToEdit]);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!title || !content) return; // Simple validation
+                
+                onSave({ title, author, content });
+            };
+
+            const handleCancel = () => {
+                onCancelEdit();
+            };
+
+            return (
+                <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
+                    <h2 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-3">
+                        {isEditing ? 'Edit Post' : 'Create New Post'}
+                    </h2>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-4">
+                            <label htmlFor="title" className="block text-gray-700 text-sm font-bold mb-2">Title</label>
+                            <input
+                                type="text"
+                                id="title"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label htmlFor="author" className="block text-gray-700 text-sm font-bold mb-2">Author (Optional)</label>
+                            <input
+                                type="text"
+                                id="author"
+                                value={author}
+                                onChange={(e) => setAuthor(e.target.value)}
+                                className="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Anonymous"
+                            />
+                        </div>
+                        <div className="mb-6">
+                            <label htmlFor="content" className="block text-gray-700 text-sm font-bold mb-2">Content</label>
+                            <textarea
+                                id="content"
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                className="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                rows="6"
+                                required
+                            ></textarea>
+                        </div>
+                        <div className="flex items-center justify-end space-x-4">
+                            {isEditing && (
+                                <button
+                                    type="button"
+                                    onClick={handleCancel}
+                                    className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            <button
+                                type="submit"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 shadow-md"
+                            >
+                                {isEditing ? 'Update Post' : 'Create Post'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            );
+        }
+
+        /**
+         * Displays a single post
+         */
+        function PostItem({ post, onEdit, onDelete }) {
+            const formattedDate = new Date(post.createdAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            return (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6 transition-all hover:shadow-xl">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-2">{post.title}</h3>
+                    <div className="text-sm text-gray-500 mb-4">
+                        By <span className="font-semibold">{post.author || 'Anonymous'}</span> on {formattedDate}
+                    </div>
+                    <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
+                    <div className="flex justify-end space-x-3 mt-6">
+                        <button
+                            onClick={() => onEdit(post)}
+                            className="text-sm bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            onClick={() => onDelete(post._id)}
+                            className="text-sm bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        /**
+         * Main Application Component
+         */
+        function App() {
+            const [posts, setPosts] = useState([]);
+            const [postToEdit, setPostToEdit] = useState(null); // The post object being edited
+            const [loading, setLoading] = useState(true);
+            const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
+
+            // Fetch all posts on initial load
+            const loadPosts = useCallback(async () => {
+                try {
+                    setLoading(true);
+                    const fetchedPosts = await fetchAllPosts();
+                    // Sort posts by creation date, newest first
+                    fetchedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    setPosts(fetchedPosts);
+                } catch (error) {
+                    showMessage('error', error.message || 'Could not load posts.');
+                } finally {
+                    setLoading(false);
+                }
+            }, []);
+
+            useEffect(() => {
+                loadPosts();
+            }, [loadPosts]);
+
+            // Function to show a message and auto-hide it
+            const showMessage = (type, text) => {
+                setMessage({ type, text });
+                setTimeout(() => {
+                    setMessage(null);
+                }, 3000); // Hide after 3 seconds
+            };
+
+            const handleSavePost = async (postData) => {
+                try {
+                    if (postToEdit) {
+                        // --- Update Logic ---
+                        await updateExistingPost(postToEdit._id, postData);
+                        showMessage('success', 'Post updated successfully!');
+                    } else {
+                        // --- Create Logic ---
+                        await createNewPost(postData);
+                        showMessage('success', 'Post created successfully!');
+                    }
+                    setPostToEdit(null); // Clear the edit form
+                    loadPosts(); // Refresh the post list
+                } catch (error) {
+                    showMessage('error', error.message || 'Failed to save post.');
+                }
+            };
+
+            const handleEditPost = (post) => {
+                setPostToEdit(post);
+                window.scrollTo(0, 0); // Scroll to top to see the form
+            };
+
+            const handleCancelEdit = () => {
+                setPostToEdit(null);
+            };
+
+            const handleDeletePost = async (id) => {
+                // We use window.confirm here. A custom modal would be better in a real app.
+                if (window.confirm('Are you sure you want to delete this post?')) {
+                    try {
+                        await deletePostById(id);
+                        showMessage('success', 'Post deleted successfully!');
+                        loadPosts(); // Refresh the post list
+                    } catch (error) {
+                        showMessage('error', error.message || 'Failed to delete post.');
+                    }
+                }
+            };
+
+            return (
+                <div className="min-h-screen p-4 sm:p-8">
+                    <div className="max-w-4xl mx-auto">
+                        
+                        {/* --- Header --- */}
+                        <header className="text-center mb-12">
+                            <h1 className="text-5xl font-extrabold text-gray-800">React & Express Blog</h1>
+                            <p className="text-xl text-gray-600 mt-2">A Full-Stack MERN Demo</p>
+                        </header>
+
+                        {/* --- Message Box --- */}
+                        <MessageBox message={message} onClose={() => setMessage(null)} />
+
+                        {/* --- Create/Edit Form --- */}
+                        <PostForm
+                            postToEdit={postToEdit}
+                            onSave={handleSavePost}
+                            onCancelEdit={handleCancelEdit}
+                        />
+
+                        {/* --- Post List --- */}
+                        <div className="bg-white p-6 rounded-lg shadow-lg">
+                            <h2 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-3">
+                                Published Posts
+                            </h2>
+                            {loading ? (
+                                <div className="text-center text-gray-600">Loading posts...</div>
+                            ) : (
+                                <div className="post-list max-h-[80vh] overflow-y-auto pr-2">
+                                    {posts.length > 0 ? (
+                                        posts.map(post => (
+                                            <PostItem
+                                                key={post._id}
+                                                post={post}
+                                                onEdit={handleEditPost}
+                                                onDelete={handleDeletePost}
+                                            />
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500">No posts found. Create one above!</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
+                </div>
+            );
+        }
+
+        // --- Mount the App ---
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
