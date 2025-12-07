@@ -21,6 +21,7 @@ exports.createPost = async (req, res) => {
 exports.getAllPosts = async (req, res) => {
   try {
     const posts = await Post.find(); // .find() with no arguments gets all documents
+    // console.log("Posts found in DB:", posts);
     res.status(200).json({
       status: 'success',
       results: posts.length,
