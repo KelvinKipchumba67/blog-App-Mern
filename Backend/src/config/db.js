@@ -14,6 +14,10 @@ const connectDB = async ()=> {
         process.exit(1)
     }
 };
-
+mongoose.connect(process.env.MONGO_URI)
+  .then((conn) => {
+     console.log(`MongoDB Connected: ${conn.connection.host}`);
+     console.log(`Database Name: ${conn.connection.name}`);
+  });
 
 module.exports = connectDB;

@@ -34,15 +34,14 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback } = React;
 
-        // --- API Configuration ---
-        const API_URL = 'https://blog-app-mern-tau.vercel.app/';
+        //API Configuration
+        const API_URL = ' http://localhost:5000/api/v1/posts';
 
 
-        // --- API Helper Functions ---
+        //API Helper Functions
         
-        /**
-         * Fetches all posts from the API
-         */
+        
+         //Fetches all posts from the API
         const fetchAllPosts = async () => {
             const response = await fetch(API_URL);
             if (!response.ok) throw new Error('Failed to fetch posts');
@@ -50,10 +49,10 @@
             return data.data.posts;
         };
 
-        /**
-         * Creates a new post
-         * @param {object} postData - { title, author, content }
-         */
+        
+         // Creates a new post
+         // @param {object} postData - { title, author, content }
+    
         const createNewPost = async (postData) => {
             const response = await fetch(API_URL, {
                 method: 'POST',
