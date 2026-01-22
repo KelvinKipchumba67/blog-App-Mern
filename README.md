@@ -20,7 +20,7 @@ User Feedback: Clear success and error messages for all actions.
 
 Tech Stack
 
-## Backend:
+## Backend
 
 Node.js: JavaScript runtime environment.
 
