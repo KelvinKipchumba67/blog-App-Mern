@@ -12,7 +12,7 @@ dotenv.config();
 
 const app = express();
 app.use(cors({
-  origin: ['https://blog-app-mern-tau.vercel.app'],
+  origin: ['FRONTEND_URL'],
   credentials: true
 }));
 // Middleware: parse JSON
