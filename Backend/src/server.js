@@ -2,15 +2,19 @@
 const postRouter = require('./routes/blogRoutes');
 const express = require('express');
 const dotenv = require('dotenv');
-const connectDB  = require('./config/db');
 const cors = require('cors');
+const connectDB  = require('./config/db');
+
 
 
 
 dotenv.config();
 
 const app = express();
-
+app.use(cors({
+  origin: ['https://blog-app-mern-tau.vercel.app'],
+  credentials: true
+}));
 // Middleware: parse JSON
 app.use(express.json());
 app.use(cors());
